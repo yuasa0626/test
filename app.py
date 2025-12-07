@@ -276,6 +276,32 @@ def render_navigation():
             )
         else:
             st.info("検討中のポートフォリオを入力してください")
+    
+    st.markdown("---")
+    st.markdown("### 資産計画")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.page_link(
+            "pages/03_ユーザープロファイル.py",
+            label="ユーザープロファイル",
+            icon="👤"
+        )
+    
+    with col2:
+        st.page_link(
+            "pages/04_ライフイベント計画.py",
+            label="ライフイベント計画",
+            icon="📅"
+        )
+    
+    with col3:
+        st.page_link(
+            "pages/05_資産シミュレーション.py",
+            label="資産シミュレーション",
+            icon="📊"
+        )
 
 
 def main():
