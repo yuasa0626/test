@@ -6,6 +6,12 @@ Allows users to register life events and set retirement goals.
 import streamlit as st
 from datetime import datetime
 from typing import Dict, List
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.formatters import format_jpy_plain, format_jpy_jpunit, format_jpy_axis, get_axis_tickvals_ticktext
 
 # Page configuration
 st.set_page_config(
@@ -14,6 +20,34 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# CSS to hide number input spinners for cleaner UI
+st.markdown("""
+<style>
+/* Hide Streamlit's custom +/- buttons on number inputs */
+button[data-testid="stNumberInputStepUp"],
+button[data-testid="stNumberInputStepDown"] {
+    display: none !important;
+}
+
+/* Also hide the button container */
+div[data-testid="stNumberInput"] > div > div > div:last-child {
+    display: none !important;
+}
+
+/* Chrome, Safari, Edge, Opera - hide native spinners */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Firefox - hide native spinners */
+input[type=number] {
+    -moz-appearance: textfield;
+}
+</style>
+""", unsafe_allow_html=True)
 
 
 def initialize_life_event_session_state():
@@ -199,14 +233,14 @@ def render_events_summary():
                     'イベント': event_name,
                     '実現時期': f"{event['years_from_now']}年後 ({target_year}年)",
                     '年齢': f"{target_age}歳",
-                    '目標金額': f"¥{event['target_amount']:,}"
+                    '目標金額': format_jpy_jpunit(event['target_amount'])
                 })
             
             import pandas as pd
             st.dataframe(pd.DataFrame(event_data), use_container_width=True, hide_index=True)
         
         with col2:
-            st.metric("イベント総額", f"¥{total_amount:,}")
+            st.metric("イベント総額", format_jpy_jpunit(total_amount))
             st.metric("登録イベント数", f"{len(events)}件")
     else:
         st.info("ライフイベントが登録されていません")
@@ -225,7 +259,7 @@ def render_events_summary():
         st.metric("リタイアまでの年数", f"{years_to_retirement}年")
     
     with col3:
-        st.metric("リタイア後年間生活費", f"¥{retirement['annual_expense']:,}")
+        st.metric("リタイア後年間生活費", format_jpy_jpunit(retirement['annual_expense']))
 
 
 def render_timeline_chart():
@@ -245,6 +279,12 @@ def render_timeline_chart():
     
     current_year = datetime.now().year
     
+    # Calculate max value for axis formatting
+    if events:
+        max_val = max(event['target_amount'] for event in events)
+        min_val = 0
+        tickvals, ticktext = get_axis_tickvals_ticktext(min_val, max_val, num_ticks=5)
+    
     for i, event in enumerate(events):
         event_name = event['custom_name'] if event['type'] == 'その他' and event['custom_name'] else event['type']
         event_year = current_year + event['years_from_now']
@@ -255,12 +295,12 @@ def render_timeline_chart():
             y=[event['target_amount']],
             mode='markers+text',
             name=event_name,
-            text=[f"{event_name}<br>¥{event['target_amount']:,}"],
+            text=[f"{event_name}<br>{format_jpy_jpunit(event['target_amount'])}"],
             textposition='top center',
             marker=dict(size=15, symbol='circle'),
             hovertemplate=f"<b>{event_name}</b><br>" +
                          f"時期: {event_year}年 ({event_age}歳)<br>" +
-                         f"金額: ¥{event['target_amount']:,}<extra></extra>"
+                         f"金額: {format_jpy_jpunit(event['target_amount'])}<extra></extra>"
         ))
     
     retirement_year = current_year + (retirement['target_age'] - current_age)
@@ -275,10 +315,18 @@ def render_timeline_chart():
     fig.update_layout(
         title="ライフイベントタイムライン",
         xaxis_title="年",
-        yaxis_title="金額（円）",
+        yaxis_title="金額",
         showlegend=True,
         height=400
     )
+    
+    # Use Japanese format for Y-axis if events exist
+    if events:
+        fig.update_yaxes(
+            tickmode='array',
+            tickvals=tickvals,
+            ticktext=ticktext
+        )
     
     st.plotly_chart(fig, use_container_width=True)
 
