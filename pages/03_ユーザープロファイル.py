@@ -6,6 +6,12 @@ Collects user and family information, cashflow, assets, and liabilities.
 import streamlit as st
 from datetime import datetime
 from typing import Dict, List
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.formatters import format_jpy_plain, format_jpy_jpunit
 
 # Page configuration
 st.set_page_config(
@@ -14,6 +20,34 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# CSS to hide number input spinners for cleaner UI
+st.markdown("""
+<style>
+/* Hide Streamlit's custom +/- buttons on number inputs */
+button[data-testid="stNumberInputStepUp"],
+button[data-testid="stNumberInputStepDown"] {
+    display: none !important;
+}
+
+/* Also hide the button container */
+div[data-testid="stNumberInput"] > div > div > div:last-child {
+    display: none !important;
+}
+
+/* Chrome, Safari, Edge, Opera - hide native spinners */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Firefox - hide native spinners */
+input[type=number] {
+    -moz-appearance: textfield;
+}
+</style>
+""", unsafe_allow_html=True)
 
 
 def initialize_profile_session_state():
@@ -324,20 +358,20 @@ def render_profile_summary():
     
     with col2:
         st.markdown("**キャッシュフロー**")
-        st.write(f"年間収入: ¥{profile['cashflow']['annual_income']:,}")
-        st.write(f"年間支出: ¥{profile['cashflow']['annual_expense']:,}")
-        st.write(f"月間投資可能額: ¥{profile['cashflow']['monthly_investment']:,}")
+        st.write(f"年間収入: {format_jpy_jpunit(profile['cashflow']['annual_income'])}")
+        st.write(f"年間支出: {format_jpy_jpunit(profile['cashflow']['annual_expense'])}")
+        st.write(f"月間投資可能額: {format_jpy_jpunit(profile['cashflow']['monthly_investment'])}")
         annual_savings = profile['cashflow']['annual_income'] - profile['cashflow']['annual_expense']
-        st.write(f"年間貯蓄可能額: ¥{annual_savings:,}")
+        st.write(f"年間貯蓄可能額: {format_jpy_jpunit(annual_savings)}")
     
     with col3:
         st.markdown("**資産・負債**")
-        st.write(f"預貯金: ¥{profile['assets']['savings']:,}")
-        st.write(f"緊急予備資金: ¥{profile['assets']['emergency_fund']:,}")
+        st.write(f"預貯金: {format_jpy_jpunit(profile['assets']['savings'])}")
+        st.write(f"緊急予備資金: {format_jpy_jpunit(profile['assets']['emergency_fund'])}")
         total_debt = sum(loan['balance'] for loan in profile['liabilities'])
-        st.write(f"負債総額: ¥{total_debt:,}")
+        st.write(f"負債総額: {format_jpy_jpunit(total_debt)}")
         net_assets = profile['assets']['savings'] - total_debt
-        st.write(f"純資産: ¥{net_assets:,}")
+        st.write(f"純資産: {format_jpy_jpunit(net_assets)}")
 
 
 def main():

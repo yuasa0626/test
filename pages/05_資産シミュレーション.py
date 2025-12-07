@@ -10,6 +10,12 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
 from typing import Dict, List, Tuple
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.formatters import format_jpy_plain, format_jpy_jpunit, format_jpy_axis, get_axis_tickvals_ticktext
 
 # Page configuration
 st.set_page_config(
@@ -159,6 +165,11 @@ def render_asset_projection_chart(
     years_labels = [current_year + y for y in years_array]
     age_labels = [current_age + y for y in years_array]
     
+    # Calculate max value for axis formatting
+    max_val = max(percentiles['p95'])
+    min_val = 0
+    tickvals, ticktext = get_axis_tickvals_ticktext(min_val, max_val, num_ticks=6)
+    
     fig = go.Figure()
     
     fig.add_trace(go.Scatter(
@@ -167,7 +178,9 @@ def render_asset_projection_chart(
         mode='lines',
         name='95パーセンタイル',
         line=dict(width=0),
-        showlegend=False
+        showlegend=False,
+        hovertemplate='%{customdata}<extra></extra>',
+        customdata=[format_jpy_jpunit(v) for v in percentiles['p95']]
     ))
     
     fig.add_trace(go.Scatter(
@@ -177,7 +190,9 @@ def render_asset_projection_chart(
         name='5-95パーセンタイル範囲',
         fill='tonexty',
         fillcolor='rgba(68, 68, 68, 0.2)',
-        line=dict(width=0)
+        line=dict(width=0),
+        hovertemplate='%{customdata}<extra></extra>',
+        customdata=[format_jpy_jpunit(v) for v in percentiles['p5']]
     ))
     
     fig.add_trace(go.Scatter(
@@ -186,7 +201,9 @@ def render_asset_projection_chart(
         mode='lines',
         name='75パーセンタイル',
         line=dict(width=0),
-        showlegend=False
+        showlegend=False,
+        hovertemplate='%{customdata}<extra></extra>',
+        customdata=[format_jpy_jpunit(v) for v in percentiles['p75']]
     ))
     
     fig.add_trace(go.Scatter(
@@ -196,7 +213,9 @@ def render_asset_projection_chart(
         name='25-75パーセンタイル範囲',
         fill='tonexty',
         fillcolor='rgba(68, 68, 68, 0.4)',
-        line=dict(width=0)
+        line=dict(width=0),
+        hovertemplate='%{customdata}<extra></extra>',
+        customdata=[format_jpy_jpunit(v) for v in percentiles['p25']]
     ))
     
     fig.add_trace(go.Scatter(
@@ -204,7 +223,9 @@ def render_asset_projection_chart(
         y=percentiles['p50'],
         mode='lines',
         name='中央値（50パーセンタイル）',
-        line=dict(color='blue', width=3)
+        line=dict(color='blue', width=3),
+        hovertemplate='中央値: %{customdata}<extra></extra>',
+        customdata=[format_jpy_jpunit(v) for v in percentiles['p50']]
     ))
     
     fig.add_trace(go.Scatter(
@@ -212,7 +233,9 @@ def render_asset_projection_chart(
         y=percentiles['mean'],
         mode='lines',
         name='平均値',
-        line=dict(color='green', width=2, dash='dash')
+        line=dict(color='green', width=2, dash='dash'),
+        hovertemplate='平均値: %{customdata}<extra></extra>',
+        customdata=[format_jpy_jpunit(v) for v in percentiles['mean']]
     ))
     
     for event in life_events:
@@ -238,7 +261,7 @@ def render_asset_projection_chart(
     fig.update_layout(
         title="資産推移予測（モンテカルロ・シミュレーション）",
         xaxis_title="年",
-        yaxis_title="資産額（円）",
+        yaxis_title="資産額",
         hovermode='x unified',
         height=500,
         legend=dict(
@@ -249,7 +272,12 @@ def render_asset_projection_chart(
         )
     )
     
-    fig.update_yaxes(tickformat=",")
+    # Use Japanese format for Y-axis
+    fig.update_yaxes(
+        tickmode='array',
+        tickvals=tickvals,
+        ticktext=ticktext
+    )
     
     st.plotly_chart(fig, use_container_width=True)
 
@@ -259,6 +287,11 @@ def render_final_value_histogram(simulations: np.ndarray, target_amount: float =
     st.markdown("### 最終資産額の分布")
     
     final_values = simulations[:, -1]
+    
+    # Calculate axis formatting
+    max_val = max(final_values)
+    min_val = 0
+    tickvals, ticktext = get_axis_tickvals_ticktext(min_val, max_val, num_ticks=6)
     
     fig = go.Figure()
     
@@ -274,22 +307,27 @@ def render_final_value_histogram(simulations: np.ndarray, target_amount: float =
     median_val = np.median(final_values)
     
     fig.add_vline(x=mean_val, line_dash="dash", line_color="green",
-                  annotation_text=f"平均: ¥{mean_val:,.0f}")
+                  annotation_text=f"平均: {format_jpy_jpunit(mean_val)}")
     fig.add_vline(x=median_val, line_dash="dash", line_color="blue",
-                  annotation_text=f"中央値: ¥{median_val:,.0f}")
+                  annotation_text=f"中央値: {format_jpy_jpunit(median_val)}")
     
     if target_amount:
         fig.add_vline(x=target_amount, line_dash="solid", line_color="red",
-                      annotation_text=f"目標: ¥{target_amount:,.0f}")
+                      annotation_text=f"目標: {format_jpy_jpunit(target_amount)}")
     
     fig.update_layout(
         title="シミュレーション終了時の資産額分布",
-        xaxis_title="資産額（円）",
+        xaxis_title="資産額",
         yaxis_title="頻度",
         height=400
     )
     
-    fig.update_xaxes(tickformat=",")
+    # Use Japanese format for X-axis
+    fig.update_xaxes(
+        tickmode='array',
+        tickvals=tickvals,
+        ticktext=ticktext
+    )
     
     st.plotly_chart(fig, use_container_width=True)
 
@@ -310,26 +348,26 @@ def render_summary_metrics(
     with col1:
         st.metric(
             "期待最終資産（平均）",
-            f"¥{np.mean(final_values):,.0f}"
+            format_jpy_jpunit(np.mean(final_values))
         )
     
     with col2:
         st.metric(
             "最終資産（中央値）",
-            f"¥{np.median(final_values):,.0f}"
+            format_jpy_jpunit(np.median(final_values))
         )
     
     with col3:
         st.metric(
             "最終資産（5%タイル）",
-            f"¥{np.percentile(final_values, 5):,.0f}",
+            format_jpy_jpunit(np.percentile(final_values, 5)),
             help="悲観的シナリオ（下位5%）"
         )
     
     with col4:
         st.metric(
             "最終資産（95%タイル）",
-            f"¥{np.percentile(final_values, 95):,.0f}",
+            format_jpy_jpunit(np.percentile(final_values, 95)),
             help="楽観的シナリオ（上位5%）"
         )
     
@@ -349,10 +387,10 @@ def render_summary_metrics(
             '目標達成確率（1億円以上）'
         ],
         '値': [
-            f"¥{simulations[0, 0]:,.0f}",
-            f"¥{total_events_cost:,.0f}",
-            f"¥{np.mean(final_values):,.0f}",
-            f"¥{np.std(final_values):,.0f}",
+            format_jpy_jpunit(simulations[0, 0]),
+            format_jpy_jpunit(total_events_cost),
+            format_jpy_jpunit(np.mean(final_values)),
+            format_jpy_jpunit(np.std(final_values)),
             f"{(final_values <= 0).sum() / len(final_values) * 100:.1f}%",
             f"{(final_values >= 100000000).sum() / len(final_values) * 100:.1f}%"
         ]
@@ -381,11 +419,11 @@ def render_yearly_projection_table(
         table_data.append({
             '年': current_year + years_array[i],
             '年齢': f"{current_age + years_array[i]}歳",
-            '5%タイル': f"¥{percentiles['p5'][i]:,.0f}",
-            '25%タイル': f"¥{percentiles['p25'][i]:,.0f}",
-            '中央値': f"¥{percentiles['p50'][i]:,.0f}",
-            '75%タイル': f"¥{percentiles['p75'][i]:,.0f}",
-            '95%タイル': f"¥{percentiles['p95'][i]:,.0f}"
+            '5%タイル': format_jpy_jpunit(percentiles['p5'][i]),
+            '25%タイル': format_jpy_jpunit(percentiles['p25'][i]),
+            '中央値': format_jpy_jpunit(percentiles['p50'][i]),
+            '75%タイル': format_jpy_jpunit(percentiles['p75'][i]),
+            '95%タイル': format_jpy_jpunit(percentiles['p95'][i])
         })
     
     st.dataframe(pd.DataFrame(table_data), use_container_width=True, hide_index=True)
